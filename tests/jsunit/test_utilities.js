@@ -1,9 +1,6 @@
 /**
  * @license
- * Visual Blocks Editor
- *
- * Copyright 2017 Google Inc.
- * https://developers.google.com/blockly/
+ * Copyright 2017 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +21,23 @@
  */
 'use strict';
 
-goog.require('goog.testing');
 
+/**
+ * The normal blockly event fire function.  We sometimes override this.  This
+ * handle lets us reset after an override.
+ */
+var savedFireFunc = Blockly.Events.fire;
+
+/**
+ * A helper function to replace Blockly.Events.fire in tests.
+ */
+function temporary_fireEvent(event) {
+  if (!Blockly.Events.isEnabled()) {
+    return;
+  }
+  Blockly.Events.FIRE_QUEUE_.push(event);
+  Blockly.Events.fireNow_();
+}
 
 /**
  * Check that two arrays have the same content.
@@ -40,26 +52,23 @@ function isEqualArrays(array1, array2) {
 }
 
 /**
- * Creates a controlled MethodMock. Sets the expected return values and
- *     the parameters if any exist. Sets the method to replay.
- * @param {!goog.testing.MockControl} mockControl Object that holds a set
- *    of mocks for this test.
+ * Creates a new method stub. Sets the expected return values and
+ *     the parameters if any exist.
  * @param {!Object} scope The scope of the method to be mocked out.
  * @param {!string} funcName The name of the function we're going to mock.
- * @param {Array<Object>} parameters The parameters to call the mock with.
- * @param {Array<!Object>} return_values The values to return when called.
- * @return {!goog.testing.MockInterface} The mocked method.
+ * @param {Array.<Object>} parameters The parameters to call the mock with.
+ * @param {Array.<!Object>} return_values The values to return when called.
+ * @return {!sinon.SinonStub} The stub method.
  */
-function setUpMockMethod(mockControl, scope, funcName, parameters,
-	return_values) {
-  var mockMethod = mockControl.createMethodMock(scope, funcName);
+function setUpMockMethod(scope, funcName, parameters, return_values) {
+  var stub = sinon.stub(scope, funcName);
   if (return_values) {
     for (var i = 0, return_value; return_value = return_values[i]; i++) {
       if (parameters && i < parameters.length) {
-        mockMethod(parameters[i]).$returns(return_value);
+        stub(parameters[i]).returns(return_value);
       }
       else {
-        mockMethod().$returns(return_value);
+        stub.onCall(i).returns(return_value);
       }
     }
   }
@@ -67,11 +76,10 @@ function setUpMockMethod(mockControl, scope, funcName, parameters,
   // recording specific method calls.
   else if (parameters) {
     for (var i = 0; i < parameters.length; i++) {
-      mockMethod(parameters[i]);
+      stub(parameters[i]);
     }
   }
-  mockMethod.$replay();
-  return mockMethod;
+  return stub;
 }
 
 /**
@@ -140,4 +148,24 @@ function defineGetVarBlock() {
 
 function undefineGetVarBlock() {
   delete Blockly.Blocks['get_var_block'];
+}
+
+/**
+ * Capture the strings sent to console.warn() when calling a function.
+ * @param {function} innerFunc The function where warnings may called.
+ * @return {string[]} The warning messages (only the first arguments).
+ */
+function captureWarnings(innerFunc) {
+  var msgs = [];
+  var nativeConsoleWarn = console.warn;
+  try {
+    console.warn = function(msg) {
+      msgs.push(msg);
+      nativeConsoleWarn.apply(console, arguments);
+    };
+    innerFunc();
+  } finally {
+    console.warn = nativeConsoleWarn;
+  }
+  return msgs;
 }

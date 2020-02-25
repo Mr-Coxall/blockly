@@ -1,9 +1,6 @@
 /**
  * @license
- * Visual Blocks Language
- *
- * Copyright 2012 Google Inc.
- * https://developers.google.com/blockly/
+ * Copyright 2012 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +57,11 @@ Blockly.JavaScript['unittest_main'] = function(block) {
         '}']);
   // Setup global to hold test results.
   var code = resultsVar + ' = [];\n';
+  // Say which test suite this is.
+  code += 'console.log(\'\\n====================\\n\\n' +
+      'Running suite: ' +
+      block.getFieldValue('SUITE_NAME') +
+       '\')\n';
   // Run tests (unindented).
   code += Blockly.JavaScript.statementToCode(block, 'DO')
       .replace(/^  /, '').replace(/\n  /g, '\n');
@@ -165,7 +167,7 @@ Blockly.JavaScript['unittest_adjustindex'] = function(block) {
   if (block.workspace.options.oneBasedIndex) {
     if (Blockly.isNumber(index)) {
       // If the index is a naked number, adjust it right now.
-      return [parseFloat(index) + 1, Blockly.JavaScript.ORDER_ATOMIC];
+      return [Number(index) + 1, Blockly.JavaScript.ORDER_ATOMIC];
     } else {
       // If the index is dynamic, adjust it in code.
       index = index + ' + 1';

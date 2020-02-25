@@ -1,9 +1,6 @@
 /**
  * @license
- * Visual Blocks Editor
- *
- * Copyright 2016 Google Inc.
- * https://developers.google.com/blockly/
+ * Copyright 2016 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,13 +24,26 @@
 /**
  * @name Blockly.Touch
  * @namespace
- **/
+ */
 goog.provide('Blockly.Touch');
 
-goog.require('goog.events');
-goog.require('goog.events.BrowserFeature');
-goog.require('goog.string');
+goog.require('Blockly.utils');
+goog.require('Blockly.utils.global');
+goog.require('Blockly.utils.string');
 
+
+/**
+  * Whether touch is enabled in the browser.
+  * Copied from Closure's goog.events.BrowserFeature.TOUCH_ENABLED
+  */
+Blockly.Touch.TOUCH_ENABLED =
+    ('ontouchstart' in Blockly.utils.global ||
+     !!(Blockly.utils.global['document'] && document.documentElement &&
+        'ontouchstart' in document.documentElement) ||
+     // IE10 uses non-standard touch events, so it has a different check.
+     !!(Blockly.utils.global['navigator'] &&
+        (Blockly.utils.global['navigator']['maxTouchPoints'] ||
+         Blockly.utils.global['navigator']['msMaxTouchPoints'])));
 
 /**
  * Which touch events are we currently paying attention to?
@@ -48,7 +58,19 @@ Blockly.Touch.touchIdentifier_ = null;
  * @type {Object}
  */
 Blockly.Touch.TOUCH_MAP = {};
-if (goog.events.BrowserFeature.TOUCH_ENABLED) {
+if (Blockly.utils.global['PointerEvent']) {
+  Blockly.Touch.TOUCH_MAP = {
+    'mousedown': ['pointerdown'],
+    'mouseenter': ['pointerenter'],
+    'mouseleave': ['pointerleave'],
+    'mousemove': ['pointermove'],
+    'mouseout': ['pointerout'],
+    'mouseover': ['pointerover'],
+    'mouseup': ['pointerup', 'pointercancel'],
+    'touchend': ['pointerup'],
+    'touchcancel': ['pointercancel']
+  };
+} else if (Blockly.Touch.TOUCH_ENABLED) {
   Blockly.Touch.TOUCH_MAP = {
     'mousedown': ['touchstart'],
     'mousemove': ['touchmove'],
@@ -70,9 +92,9 @@ Blockly.longPid_ = 0;
  * if the touch event terminates early.
  * @param {!Event} e Touch start event.
  * @param {Blockly.Gesture} gesture The gesture that triggered this longStart.
- * @private
+ * @package
  */
-Blockly.longStart_ = function(e, gesture) {
+Blockly.longStart = function(e, gesture) {
   Blockly.longStop_();
   // Punt on multitouch events.
   if (e.changedTouches && e.changedTouches.length != 1) {
@@ -99,7 +121,7 @@ Blockly.longStart_ = function(e, gesture) {
 /**
  * Nope, that's not a long-press.  Either touchend or touchcancel was fired,
  * or a drag hath begun.  Kill the queued long-press task.
- * @private
+ * @package
  */
 Blockly.longStop_ = function() {
   if (Blockly.longPid_) {
@@ -140,8 +162,8 @@ Blockly.Touch.shouldHandleEvent = function(e) {
 Blockly.Touch.getTouchIdentifierFromEvent = function(e) {
   return e.pointerId != undefined ? e.pointerId :
       (e.changedTouches && e.changedTouches[0] &&
-      e.changedTouches[0].identifier != undefined &&
-      e.changedTouches[0].identifier != null) ?
+      e.changedTouches[0].identifier !== undefined &&
+      e.changedTouches[0].identifier !== null) ?
       e.changedTouches[0].identifier : 'mouse';
 };
 
@@ -162,13 +184,14 @@ Blockly.Touch.checkTouchIdentifier = function(e) {
 
   // if (Blockly.touchIdentifier_ )is insufficient because Android touch
   // identifiers may be zero.
-  if (Blockly.Touch.touchIdentifier_ != undefined &&
-      Blockly.Touch.touchIdentifier_ != null) {
+  if (Blockly.Touch.touchIdentifier_ !== undefined &&
+      Blockly.Touch.touchIdentifier_ !== null) {
     // We're already tracking some touch/mouse event.  Is this from the same
     // source?
     return Blockly.Touch.touchIdentifier_ == identifier;
   }
-  if (e.type == 'mousedown' || e.type == 'touchstart' || e.type == 'pointerdown') {
+  if (e.type == 'mousedown' || e.type == 'touchstart' ||
+      e.type == 'pointerdown') {
     // No identifier set yet, and this is the start of a drag.  Set it and
     // return.
     Blockly.Touch.touchIdentifier_ = identifier;
@@ -186,7 +209,7 @@ Blockly.Touch.checkTouchIdentifier = function(e) {
  * @param {!Event} e A touch event.
  */
 Blockly.Touch.setClientFromTouch = function(e) {
-  if (goog.string.startsWith(e.type, 'touch')) {
+  if (Blockly.utils.string.startsWith(e.type, 'touch')) {
     // Map the touch event's properties to the event.
     var touchPoint = e.changedTouches[0];
     e.clientX = touchPoint.clientX;
@@ -197,22 +220,22 @@ Blockly.Touch.setClientFromTouch = function(e) {
 /**
  * Check whether a given event is a mouse or touch event.
  * @param {!Event} e An event.
- * @return {boolean} true if it is a mouse or touch event; false otherwise.
+ * @return {boolean} True if it is a mouse or touch event; false otherwise.
  */
 Blockly.Touch.isMouseOrTouchEvent = function(e) {
-  return goog.string.startsWith(e.type, 'touch') ||
-      goog.string.startsWith(e.type, 'mouse') ||
-      goog.string.startsWith(e.type, 'pointer');
+  return Blockly.utils.string.startsWith(e.type, 'touch') ||
+      Blockly.utils.string.startsWith(e.type, 'mouse') ||
+      Blockly.utils.string.startsWith(e.type, 'pointer');
 };
 
 /**
  * Check whether a given event is a touch event or a pointer event.
  * @param {!Event} e An event.
- * @return {boolean} true if it is a touch event; false otherwise.
+ * @return {boolean} True if it is a touch event; false otherwise.
  */
 Blockly.Touch.isTouchEvent = function(e) {
-  return goog.string.startsWith(e.type, 'touch') ||
-      goog.string.startsWith(e.type, 'pointer');
+  return Blockly.utils.string.startsWith(e.type, 'touch') ||
+      Blockly.utils.string.startsWith(e.type, 'pointer');
 };
 
 /**
@@ -231,8 +254,8 @@ Blockly.Touch.splitEventByTouches = function(e) {
         type: e.type,
         changedTouches: [e.changedTouches[i]],
         target: e.target,
-        stopPropagation: function(){ e.stopPropagation(); },
-        preventDefault: function(){ e.preventDefault(); }
+        stopPropagation: function() { e.stopPropagation(); },
+        preventDefault: function() { e.preventDefault(); }
       };
       events[i] = newEvent;
     }
